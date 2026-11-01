@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Playlist Manager</title>
+  <meta name="theme-color" content="#121212" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Playlists" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">♪</span> Playlist Manager</div>
+    <div class="top-actions">
+      <span id="userName" class="muted"></span>
+      <button id="btnBackups" class="icon-btn" title="Backups" hidden>🗂</button>
+      <button id="btnSettings" class="icon-btn" title="Einstellungen">⚙</button>
+    </div>
+  </header>
+
+  <!-- Login -->
+  <section id="viewLogin" class="view" hidden>
+    <div class="card narrow">
+      <h1>Willkommen</h1>
+      <p>Verwalte, sortiere und importiere deine Spotify-Playlists – direkt im Browser, ohne Server. Deine Daten bleiben auf diesem Gerät.</p>
+      <button id="btnLogin" class="btn primary big">Mit Spotify anmelden</button>
+      <details class="hint">
+        <summary>Einrichtung (einmalig)</summary>
+        <ol>
+          <li>Im <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify Developer Dashboard</a> deine App öffnen → <b>Settings</b>.</li>
+          <li>Unter <b>Redirect URIs</b> exakt diese Adresse eintragen:<br /><code id="loginRedirect"></code></li>
+          <li>Unter <b>User Management</b> alle Spotify-Konten eintragen, die die App nutzen sollen (max. 5).</li>
+          <li>Die Client-ID kannst du in den Einstellungen (⚙) ändern.</li>
+        </ol>
+      </details>
+    </div>
+  </section>
+
+  <!-- App -->
+  <section id="viewApp" class="view" hidden>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="manage" role="tab">📋 Verwalten</button>
+      <button class="tab" data-tab="import" role="tab">📥 Importieren</button>
+    </nav>
+
+    <!-- Verwalten -->
+    <div id="tabManage" class="tabpanel">
+      <div class="card">
+        <div class="row">
+          <select id="selPlaylist" class="grow" aria-label="Playlist"></select>
+          <button id="btnReloadPlaylists" class="btn" title="Playlists neu laden">↻</button>
+        </div>
+        <div class="row">
+          <input id="inpUrl" class="grow" placeholder="Spotify-Playlist-Link oder ID einfügen…" />
+          <button id="btnLoadUrl" class="btn">Laden</button>
+        </div>
+        <div class="row wrap actions">
+          <button id="btnClone" class="btn">📋 Klonen</button>
+          <button id="btnOpen" class="btn">🌐 In Spotify öffnen</button>
+          <button id="btnExport" class="btn">💾 Export</button>
+          <button id="btnEmpty" class="btn warn needs-edit">🧹 Leeren</button>
+          <button id="btnUnfollow" class="btn danger">🗑 Löschen / Entfolgen</button>
+        </div>
+        <div id="plInfo" class="muted small"></div>
+      </div>
+
+      <div class="card">
+        <div class="row wrap filters">
+          <input id="fText" class="grow" placeholder="Filter: Titel / Interpret…" />
+          <label class="mini">BPM <input id="fBpmMin" type="number" inputmode="numeric" placeholder="von" /> – <input id="fBpmMax" type="number" inputmode="numeric" placeholder="bis" /></label>
+          <label class="mini">Jahr <input id="fYearMin" type="number" inputmode="numeric" placeholder="von" /> – <input id="fYearMax" type="number" inputmode="numeric" placeholder="bis" /></label>
+          <button id="btnClearFilter" class="btn small">✕ Filter</button>
+        </div>
+        <div class="row wrap sorts">
+          <span class="muted small">Sortieren:</span>
+          <button class="btn small" data-sort="bpm">⚡ BPM</button>
+          <button class="btn small" data-sort="year">📅 Jahr</button>
+          <button class="btn small" data-sort="name">🔤 Titel</button>
+          <button class="btn small" data-sort="artist">👤 Interpret</button>
+          <button class="btn small" data-sort="added">🕒 Hinzugefügt</button>
+          <button class="btn small" data-sort="shuffle" title="Mischen, ohne dass ein Interpret doppelt hintereinander kommt">🎲 Mischen</button>
+          <button class="btn small" data-sort="original">⏪ Original</button>
+        </div>
+        <div class="row wrap">
+          <button id="btnSaveOrder" class="btn primary needs-edit" disabled>💾 Reihenfolge in Spotify speichern</button>
+          <button id="btnViewAsPlaylist" class="btn">➕ Ansicht als neue Playlist</button>
+          <button id="btnDuplicates" class="btn">👯 Duplikate markieren</button>
+        </div>
+      </div>
+
+      <div class="card table-card">
+        <table class="tracks">
+          <thead>
+            <tr><th class="c-num">#</th><th>Titel / Interpret</th><th class="c-bpm">BPM</th><th class="c-year">Jahr</th><th class="c-dur">Dauer</th></tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        <div id="emptyHint" class="muted center pad">Wähle oben eine Playlist.</div>
+      </div>
+    </div>
+
+    <!-- Importieren -->
+    <div id="tabImport" class="tabpanel" hidden>
+      <div class="card">
+        <h2>1. Quelle</h2>
+        <p class="muted small">Eine Zeile pro Song: <code>Interpret - Titel</code>, Spotify-Track-Links, oder eine CSV-Datei (auch der eigene Export). Alternativ eine öffentliche Deezer-Playlist.</p>
+        <textarea id="impText" rows="10" placeholder="Faithless - Insomnia&#10;Robert Miles - Children&#10;https://open.spotify.com/track/…"></textarea>
+        <div class="row wrap">
+          <label class="btn file-btn">📂 Datei laden<input id="impFile" type="file" accept=".txt,.csv,.tsv,text/plain,text/csv" hidden /></label>
+          <button id="impClear" class="btn">Leeren</button>
+        </div>
+        <div class="row">
+          <input id="impDeezer" class="grow" placeholder="oder Deezer-Playlist-Link (deezer.com/…/playlist/123)" />
+          <button id="impDeezerLoad" class="btn">Deezer laden</button>
+        </div>
+        <button id="impMatch" class="btn primary big">🔎 Treffer suchen</button>
+      </div>
+
+      <div id="impReviewCard" class="card" hidden>
+        <h2>2. Treffer prüfen</h2>
+        <div id="impSummary" class="muted small"></div>
+        <div class="row wrap">
+          <label class="mini"><input type="checkbox" id="impOnlyUnsure" /> nur unsichere / fehlende anzeigen</label>
+          <button id="impExportMissing" class="btn small">⬇ Nicht gefundene exportieren</button>
+        </div>
+        <div id="impList" class="imp-list"></div>
+      </div>
+
+      <div id="impTargetCard" class="card" hidden>
+        <h2>3. Ziel</h2>
+        <div class="row wrap">
+          <label class="mini"><input type="radio" name="impTarget" value="new" checked /> Neue Playlist</label>
+          <label class="mini"><input type="radio" name="impTarget" value="existing" /> Zu bestehender eigener Playlist hinzufügen</label>
+        </div>
+        <div id="impNewFields">
+          <input id="impName" placeholder="Name der neuen Playlist" />
+          <input id="impDesc" placeholder="Beschreibung (optional)" />
+          <label class="mini"><input type="checkbox" id="impPublic" /> öffentlich</label>
+        </div>
+        <div id="impExistingFields" hidden>
+          <select id="impExisting"></select>
+        </div>
+        <label class="mini"><input type="checkbox" id="impSkipExisting" checked /> Titel überspringen, die schon in der Ziel-Playlist sind</label>
+        <button id="impRun" class="btn primary big">🚀 Importieren</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Auswahl-Leiste -->
+  <div id="selBar" class="selbar" hidden>
+    <span id="selCount"></span>
+    <button id="selPlay" class="btn small">▶</button>
+    <button id="selUp" class="btn small needs-edit">▲</button>
+    <button id="selDown" class="btn small needs-edit">▼</button>
+    <button id="selRemove" class="btn small danger needs-edit">Entfernen</button>
+    <button id="selAll" class="btn small">Alle</button>
+    <button id="selNone" class="btn small">✕</button>
+  </div>
+
+  <footer class="statusbar">
+    <div id="progress" class="progress" hidden><div id="progressBar"></div></div>
+    <span id="status">Bereit.</span>
+  </footer>
+
+  <div id="modalRoot"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

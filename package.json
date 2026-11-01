@@ -1,0 +1,1 @@
+{ "name": "playlist-manager", "private": true, "type": "module", "scripts": { "test": "node tests/match.test.mjs" } }
